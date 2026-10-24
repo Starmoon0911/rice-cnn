@@ -41,6 +41,9 @@ MobileNetV3 使用 Small 版本，延續專案原本的選擇。
   若 XPU 記憶體不足，可將**整個新實驗**改為 `--batch-size 4 --run-dir results/pretrained_xpu_b4`。
 - 固定 seed 並優先使用 deterministic 運算；不支援的運算會警告，跨硬體不保證逐位元重現。
   訓練秒數含訓練、驗證與 checkpoint／history 寫入，排除權重下載和最終測試，並同步 XPU 計時。
+- EfficientNet-B0 的 SE 層在 XPU 上以等價 linear 運算處理池化後的 1×1 卷積，
+  避免部分批次大小（本機 batch size 4）觸發卷積 bias 梯度錯誤，造成驗證 loss 為 NaN。
+  預訓練權重與 checkpoint 的參數名稱、形狀保持相容；CPU 使用原本卷積。
 
 預設輸出 `results/pretrained_xpu/`（CPU 為 `results/pretrained_cpu/`）：
 

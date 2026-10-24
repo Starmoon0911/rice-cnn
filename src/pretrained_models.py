@@ -4,6 +4,7 @@ import torch
 from torch import nn
 from torchvision import models, transforms
 from torchvision.models.resnet import BasicBlock
+from torchvision.ops import SqueezeExcitation
 
 if __package__:
     from .model import RiceCNN
@@ -80,6 +81,20 @@ class AttentionBasicBlock(BasicBlock):
         return self.relu(out + identity)
 
 
+class PooledPointwiseConv2d(nn.Conv2d):
+    """Avoid the XPU 1x1 Conv2d bias-backward bug on pooled SE tensors.
+
+    A pointwise convolution on N,C,1,1 is exactly a linear projection.
+    Retaining Conv2d parameters keeps torchvision checkpoint keys/shapes intact.
+    """
+
+    def forward(self, x):
+        if x.device.type == 'xpu' and x.shape[-2:] == (1, 1):
+            return nn.functional.linear(x.flatten(1), self.weight[:, :, 0, 0],
+                                        self.bias)[:, :, None, None]
+        return super().forward(x)
+
+
 def build_model(name, num_classes, pretrained=True):
     """Load the full 1000-class backbone first, then replace classification heads.
 
@@ -110,6 +125,17 @@ def build_model(name, num_classes, pretrained=True):
         model.transform_input = True
     else:
         model.classifier[-1] = nn.Linear(model.classifier[-1].in_features, num_classes)
+    if name == 'efficientnet_b0':
+        for module in model.modules():
+            if isinstance(module, SqueezeExcitation):
+                for attribute in ('fc1', 'fc2'):
+                    conv = getattr(module, attribute)
+                    # Meta construction preserves RNG state and avoids allocating
+                    # unused weights; reuse the loaded pretrained parameters.
+                    replacement = PooledPointwiseConv2d(
+                        conv.in_channels, conv.out_channels, 1, device='meta')
+                    replacement.weight, replacement.bias = conv.weight, conv.bias
+                    setattr(module, attribute, replacement)
     return model
 
 

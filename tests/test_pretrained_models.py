@@ -28,6 +28,35 @@ class PretrainedModelsTests(unittest.TestCase):
                 self.assertEqual(tuple(output.shape), (1, 3))
                 self.assertTrue(torch.isfinite(output).all())
 
+    @unittest.skipUnless(torch.xpu.is_available(), 'Intel XPU required')
+    def test_efficientnet_pooled_convolution_gradients_match_cpu_on_xpu(self):
+        from src.pretrained_models import build_model
+        # The final partial batch of four triggered NaN bias gradients in the
+        # XPU Conv2d backward kernel for this real EfficientNet SE layer.
+        import copy
+        torch.manual_seed(42)
+        model = build_model('efficientnet_b0', 3, pretrained=False)
+        reference = model.features[6][1].block[2].fc1
+        accelerated = copy.deepcopy(reference).to('xpu')
+        for batch_size in (2, 4, 8):
+            with self.subTest(batch_size=batch_size):
+                reference.zero_grad(set_to_none=True)
+                accelerated.zero_grad(set_to_none=True)
+                inputs = torch.randn(batch_size, reference.in_channels, 1, 1,
+                                     requires_grad=True)
+                xpu_inputs = inputs.detach().to('xpu').requires_grad_()
+                output = reference(inputs)
+                xpu_output = accelerated(xpu_inputs)
+                gradient = torch.randn_like(output)
+                output.backward(gradient)
+                xpu_output.backward(gradient.to('xpu'))
+                torch.testing.assert_close(xpu_output.cpu(), output, atol=1e-5, rtol=1e-4)
+                for expected, actual in ((inputs.grad, xpu_inputs.grad),
+                                         (reference.weight.grad, accelerated.weight.grad),
+                                         (reference.bias.grad, accelerated.bias.grad)):
+                    self.assertTrue(torch.isfinite(actual).all())
+                    torch.testing.assert_close(actual.cpu(), expected, atol=1e-5, rtol=1e-4)
+
     def test_attention_preserves_pretrained_backbone_and_receives_gradients(self):
         from src.pretrained_models import build_model
         reference = models.resnet18(weights=None)
