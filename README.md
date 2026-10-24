@@ -36,7 +36,8 @@ MobileNetV3 使用 Small 版本，延續專案原本的選擇。
 - 共用固定 seed 42、70%／15%／15% 分層切分、AdamW（lr 0.0003、weight decay 0.0001），
   完整跑指定 epochs，以最小 validation CE 選 checkpoint，最後才測試。
   因各模型輸入解析度／權重配方不同，這是預訓練系統比較，不是純架構消融。
-- 檔案 SHA-256、完整切分與訓練設定會保存；相同目錄拒絕不同設定，並拒絕無意覆寫。
+- 檔案 SHA-256、完整切分與訓練設定會保存；相同目錄拒絕不同設定。
+  預設略過已有 checkpoint 或 metrics 的模型，保留既有檔案並繼續訓練其餘模型；全部略過時仍更新比較表。
   `--overwrite` 可明確重訓所選模型；中斷後也可用此選項從頭重訓，沒有續接 optimizer 功能。
   若 XPU 記憶體不足，可將**整個新實驗**改為 `--batch-size 4 --run-dir results/pretrained_xpu_b4`。
 - 固定 seed 並優先使用 deterministic 運算；不支援的運算會警告，跨硬體不保證逐位元重現。

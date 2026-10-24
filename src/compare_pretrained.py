@@ -238,7 +238,8 @@ def main():
     parser.add_argument('--weight-decay', type=float, default=.0001)
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--threads', type=int, default=4)
-    parser.add_argument('--overwrite', action='store_true', help='Retrain selected models, replacing their files')
+    parser.add_argument('--overwrite', action='store_true',
+                        help='Retrain selected models, replacing their files (default: skip existing models)')
     parser.add_argument('--summarize-only', action='store_true', help='Aggregate saved metrics without training or GPU')
     args = parser.parse_args()
     args.run_dir = (args.run_dir or ROOT / f'results/pretrained_{args.device}').resolve()
@@ -274,13 +275,14 @@ def main():
                   'preprocessing_policy': 'weights transforms; RandomResizedCrop scale 0.8-1, flip, rotation15, jitter0.15',
                   'deterministic': 'warn_only',
                   'weights': {name: weight_name(name) for name in MODEL_NAMES}}
-        for name in args.models:
-            if not args.overwrite and ((args.run_dir / 'checkpoints' / f'{name}.pth').exists()
-                                      or (args.run_dir / f'{name}_metrics.json').exists()):
-                raise ValueError(f'{name} already exists. Select untrained models, a new --run-dir, or --overwrite.')
         ensure_experiment(args.run_dir, manifest, config)
         print(f'Device: {args.device}; data: ' + ', '.join(f'{k}={len(v)}' for k, v in manifest['splits'].items()), flush=True)
         for name in args.models:
+            if not args.overwrite and ((args.run_dir / 'checkpoints' / f'{name}.pth').exists()
+                                      or (args.run_dir / f'{name}_metrics.json').exists()):
+                print(f'Skipping {name}: checkpoint or metrics already exists; '
+                      'use --overwrite to retrain.', flush=True)
+                continue
             # Never expose a stale completed result while replacing its checkpoint.
             old_metrics = args.run_dir / f'{name}_metrics.json'
             if old_metrics.exists():
@@ -288,6 +290,7 @@ def main():
             write_summary(args.run_dir)
             train_one(name, args, manifest, config)
             write_summary(args.run_dir)
+        write_summary(args.run_dir)
         print(f'Results: {args.run_dir / "comparison.md"}', flush=True)
     except (ValueError, RuntimeError, OSError) as error:
         parser.error(str(error))
