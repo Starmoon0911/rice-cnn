@@ -1,5 +1,36 @@
 # 水稻葉片病害 CNN
 
+## Install (Bash)
+
+Run from Linux, macOS, WSL, or Git Bash on Windows with Python 3.10+:
+
+```bash
+bash install.sh                 # CPU
+bash install.sh --device xpu    # Intel GPU (requires compatible drivers)
+# Git Bash, if python3 is unavailable:
+PYTHON=python bash install.sh --device xpu
+```
+
+The script creates or reuses `.venv`, installs `requirements-install.txt` and
+the selected PyTorch backend, downloads the
+[Kaggle rice leaf diseases dataset](https://www.kaggle.com/datasets/vbookshelf/rice-leaf-diseases)
+into `dataset/rice_leaf_diseases`, and validates the three class folders and images.
+Existing data is reused without overwriting it. If an existing dataset fails
+validation, repair it or move it aside before rerunning.
+
+It also caches the six unique ImageNet weight files used by the nine models
+in `src/pretrained_models.py`. SE/CBAM share ResNet18 weights; Simple CNN starts
+from random weights. These are pretrained backbones; rice disease checkpoints
+are produced by training. Weights use the normal PyTorch cache, or `TORCH_HOME`
+if set; use the same cache setting when training.
+
+Use `--skip-dataset`, `--skip-models`, or `--help` as needed. Downloads require
+internet access. If Kaggle requests authentication, configure `KAGGLE_API_TOKEN`
+or `~/.kaggle/kaggle.json` as described in the
+[KaggleHub documentation](https://github.com/Kaggle/kagglehub#authenticate).
+The original `requirements.txt` records the existing Intel XPU environment;
+the installer uses portable runtime requirements instead.
+
 ## 預訓練模型比較（依 models.md）
 
 新增入口 `src/compare_pretrained.py`，與下方既有從零訓練／Grad-CAM 實驗分開。

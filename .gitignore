@@ -10,7 +10,7 @@ __pycache__/
 .venv/
 venv/
 env/
-
+docs/
 # Packaging and test coverage
 build/
 dist/
