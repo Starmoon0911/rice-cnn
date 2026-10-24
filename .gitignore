@@ -1,0 +1,52 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Packaging and test coverage
+build/
+dist/
+*.egg-info/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Local datasets and generated training artifacts
+/dataset/
+/models/
+/results/
+/figures/
+*.pth
+*.pth.tmp
+*.pt
+*.ckpt
+/runs/
+/wandb/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Editor and operating system files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Runtime logs
+*.log
